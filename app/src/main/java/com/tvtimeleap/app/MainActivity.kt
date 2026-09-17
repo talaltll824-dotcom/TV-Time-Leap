@@ -17,93 +17,185 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (isTv()) {
-            showTv()
+        val isTv =
+            (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
+                Configuration.UI_MODE_TYPE_TELEVISION
+
+        if (isTv) {
+            openTvScreen()
         } else {
-            showPhone()
+            openPhoneScreen()
         }
     }
 
-    private fun isTv(): Boolean {
-        val type =
-            resources.configuration.uiMode and
-                Configuration.UI_MODE_TYPE_MASK
-
-        return type ==
-            Configuration.UI_MODE_TYPE_TELEVISION
+    private fun baseLayout(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(40, 40, 40, 40)
+            setBackgroundColor(Color.WHITE)
+        }
     }
 
-    private fun showTv() {
+    private fun openTvScreen() {
 
-        val layout = LinearLayout(this)
-        layout.orientation = LinearLayout.VERTICAL
-        layout.gravity = Gravity.CENTER
-        layout.setPadding(40, 40, 40, 40)
-        layout.setBackgroundColor(Color.WHITE)
+        val layout = baseLayout()
 
-        val title = TextView(this)
-        title.text = "TV Time Leap"
-        title.textSize = 30f
-        title.gravity = Gravity.CENTER
-        title.setTextColor(Color.BLACK)
+        val title = TextView(this).apply {
+            text = "TV Time Leap"
+            textSize = 30f
+            gravity = Gravity.CENTER
+            setTextColor(Color.BLACK)
+        }
 
-        val status = TextView(this)
-        status.text = "Hazır"
-        status.textSize = 18f
-        status.gravity = Gravity.CENTER
-        status.setPadding(0, 30, 0, 30)
+        val status = TextView(this).apply {
+            text = "Hazır"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setPadding(0, 30, 0, 30)
+        }
 
-        val start = Button(this)
-        start.text = "TV TIME LEAP BAŞLAT"
+        val startButton = Button(this).apply {
+            text = "TV TIME LEAP BAŞLAT"
+        }
 
-        start.setOnClickListener {
-
-            val serviceIntent =
-                Intent(
-                    this,
-                    BufferService::class.java
-                )
+        startButton.setOnClickListener {
+            val intent = Intent(
+                this,
+                BufferService::class.java
+            )
 
             ContextCompat.startForegroundService(
                 this,
-                serviceIntent
+                intent
             )
 
-            status.text =
-                "Telefon bağlantısı bekleniyor"
+            status.text = "Telefon bağlantısı bekleniyor"
         }
 
         layout.addView(title)
         layout.addView(status)
-        layout.addView(start)
+        layout.addView(startButton)
 
         setContentView(layout)
     }
 
-    private fun showPhone() {
+    private fun openPhoneScreen() {
 
-        val layout = LinearLayout(this)
-        layout.orientation = LinearLayout.VERTICAL
-        layout.gravity = Gravity.CENTER
-        layout.setPadding(40, 40, 40, 40)
-        layout.setBackgroundColor(Color.WHITE)
+        val layout = baseLayout()
 
-        val title = TextView(this)
-        title.text = "TV Time Leap"
-        title.textSize = 30f
-        title.gravity = Gravity.CENTER
-        title.setTextColor(Color.BLACK)
+        val title = TextView(this).apply {
+            text = "TV Time Leap"
+            textSize = 30f
+            gravity = Gravity.CENTER
+            setTextColor(Color.BLACK)
+        }
 
-        val ip = EditText(this)
-        ip.hint = "TV IP adresi"
-        ip.setSingleLine(true)
+        val ipInput = EditText(this).apply {
+            hint = "TV IP adresi"
+            setSingleLine(true)
+        }
 
-        val minutes = EditText(this)
-        minutes.hint = "Kaç dakika geri?"
-        minutes.inputType =
-            android.text.InputType.TYPE_CLASS_NUMBER
-        minutes.setSingleLine(true)
+        val minuteInput = EditText(this).apply {
+            hint = "Kaç dakika geri?"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+        }
 
-        val status = TextView(this)
-        status.text = "TV bağlantısı bekleniyor"
-        status.gravity
+        val status = TextView(this).apply {
+            text = "TV bağlantısı bekleniyor"
+            gravity = Gravity.CENTER
+            setPadding(0, 20, 0, 20)
+        }
+
+        val backButton = Button(this).apply {
+            text = "GERİ SAR"
+        }
+
+        val playButton = Button(this).apply {
+            text = "OYNAT / DURAKLAT"
+        }
+
+        val liveButton = Button(this).apply {
+            text = "CANLIYA DÖN"
+        }
+
+        val client = TvCommandClient()
+
+        backButton.setOnClickListener {
+
+            val ip = ipInput.text.toString().trim()
+            val minutes =
+                minuteInput.text.toString().toIntOrNull()
+
+            if (ip.isBlank()) {
+                status.text = "TV IP adresini gir"
+            } else if (minutes == null || minutes <= 0) {
+                status.text = "Geçerli dakika gir"
+            } else {
+                status.text = "Gönderiliyor..."
+
+                client.seekBack(ip, minutes) { success ->
+                    runOnUiThread {
+                        status.text =
+                            if (success) {
+                                "$minutes dakika geri sarıldı"
+                            } else {
+                                "TV'ye bağlanılamadı"
+                            }
+                    }
+                }
+            }
+        }
+
+        playButton.setOnClickListener {
+
+            val ip = ipInput.text.toString().trim()
+
+            if (ip.isBlank()) {
+                status.text = "TV IP adresini gir"
+            } else {
+                client.playPause(ip) { success ->
+                    runOnUiThread {
+                        status.text =
+                            if (success) {
+                                "Oynat / Duraklat gönderildi"
+                            } else {
+                                "TV'ye bağlanılamadı"
+                            }
+                    }
+                }
+            }
+        }
+
+        liveButton.setOnClickListener {
+
+            val ip = ipInput.text.toString().trim()
+
+            if (ip.isBlank()) {
+                status.text = "TV IP adresini gir"
+            } else {
+                client.goLive(ip) { success ->
+                    runOnUiThread {
+                        status.text =
+                            if (success) {
+                                "Canlı yayına dönüldü"
+                            } else {
+                                "TV'ye bağlanılamadı"
+                            }
+                    }
+                }
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(ipInput)
+        layout.addView(minuteInput)
+        layout.addView(backButton)
+        layout.addView(playButton)
+        layout.addView(liveButton)
+        layout.addView(status)
+
+        setContentView(layout)
+    }
+}
