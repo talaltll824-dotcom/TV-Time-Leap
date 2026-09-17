@@ -9,6 +9,7 @@ import android.media.tv.TvInputManager
 import android.media.tv.TvView
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -76,9 +77,11 @@ class MainActivity : AppCompatActivity() {
             text = "TIMESHIFT TEST"
         }
 
-        tvView = TvView(this).apply {
-            visibility = android.view.View.INVISIBLE
+        val hiddenTvView = TvView(this).apply {
+            visibility = View.INVISIBLE
         }
+
+        tvView = hiddenTvView
 
         startButton.setOnClickListener {
 
@@ -103,23 +106,24 @@ class MainActivity : AppCompatActivity() {
 
         timeShiftButton.setOnClickListener {
 
-            val view = tvView
+            val currentTvView = tvView
 
-            if (view == null) {
+            if (currentTvView == null) {
                 status.text = "TV VIEW HATASI"
                 return@setOnClickListener
             }
 
             timeShiftTester =
                 TimeShiftTester(
-                    this,
-                    view
-                ) { result ->
+                    context = this,
+                    tvView = currentTvView,
+                    onResult = { result ->
 
-                    runOnUiThread {
-                        status.text = result
+                        runOnUiThread {
+                            status.text = result
+                        }
                     }
-                }
+                )
 
             timeShiftTester?.start()
         }
@@ -129,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         layout.addView(startButton)
         layout.addView(tunerButton)
         layout.addView(timeShiftButton)
-        layout.addView(tvView)
+        layout.addView(hiddenTvView)
 
         setContentView(layout)
     }
@@ -143,33 +147,33 @@ class MainActivity : AppCompatActivity() {
                     Context.TV_INPUT_SERVICE
                 ) as TvInputManager
 
-            val inputs =
-                manager.tvInputList
-
             val tunerInputs =
-                inputs.filter {
+                manager.tvInputList.filter {
                     it.type == TvInputInfo.TYPE_TUNER
                 }
 
-            if (tunerInputs.isNotEmpty()) {
+            if (tunerInputs.isEmpty()) {
+
+                "TUNER BULUNAMADI"
+
+            } else {
 
                 val names =
-                    tunerInputs.joinToString("\n") {
+                    tunerInputs.joinToString("\n") { input ->
 
                         try {
-                            it.loadLabel(
+
+                            input.loadLabel(
                                 this@MainActivity
                             ).toString()
+
                         } catch (_: Exception) {
-                            it.id
+
+                            input.id
                         }
                     }
 
                 "TUNER BULUNDU\n$names"
-
-            } else {
-
-                "TUNER BULUNAMADI"
             }
 
         } catch (e: Exception) {
@@ -204,6 +208,7 @@ class MainActivity : AppCompatActivity() {
 
         val status = TextView(this).apply {
             text = "TV bağlantısı bekleniyor"
+            textSize = 16f
             gravity = Gravity.CENTER
             setTextColor(Color.BLACK)
             setPadding(0, 20, 0, 20)
@@ -231,35 +236,42 @@ class MainActivity : AppCompatActivity() {
             val minutes =
                 minuteInput.text
                     .toString()
+                    .trim()
                     .toIntOrNull()
 
-            if (ip.isBlank()) {
+            when {
 
-                status.text = "TV IP adresini gir"
+                ip.isBlank() -> {
+                    status.text =
+                        "TV IP adresini gir"
+                }
 
-            } else if (
                 minutes == null ||
-                minutes <= 0
-            ) {
+                    minutes <= 0 -> {
 
-                status.text = "Geçerli dakika gir"
+                    status.text =
+                        "Geçerli dakika gir"
+                }
 
-            } else {
+                else -> {
 
-                status.text = "Gönderiliyor..."
+                    status.text =
+                        "Gönderiliyor..."
 
-                client.seekBack(
-                    ip,
-                    minutes
-                ) { success ->
+                    client.seekBack(
+                        ip,
+                        minutes
+                    ) { success ->
 
-                    runOnUiThread {
-                        status.text =
-                            if (success) {
-                                "Geri sarma komutu gönderildi"
-                            } else {
-                                "TV'ye bağlanılamadı"
-                            }
+                        runOnUiThread {
+
+                            status.text =
+                                if (success) {
+                                    "Geri sarma komutu gönderildi"
+                                } else {
+                                    "TV'ye bağlanılamadı"
+                                }
+                        }
                     }
                 }
             }
@@ -272,13 +284,20 @@ class MainActivity : AppCompatActivity() {
 
             if (ip.isBlank()) {
 
-                status.text = "TV IP adresini gir"
+                status.text =
+                    "TV IP adresini gir"
 
             } else {
 
-                client.playPause(ip) { success ->
+                status.text =
+                    "Gönderiliyor..."
+
+                client.playPause(
+                    ip
+                ) { success ->
 
                     runOnUiThread {
+
                         status.text =
                             if (success) {
                                 "Oynat / Duraklat gönderildi"
@@ -297,13 +316,20 @@ class MainActivity : AppCompatActivity() {
 
             if (ip.isBlank()) {
 
-                status.text = "TV IP adresini gir"
+                status.text =
+                    "TV IP adresini gir"
 
             } else {
 
-                client.goLive(ip) { success ->
+                status.text =
+                    "Gönderiliyor..."
+
+                client.goLive(
+                    ip
+                ) { success ->
 
                     runOnUiThread {
+
                         status.text =
                             if (success) {
                                 "Canlıya dön komutu gönderildi"
@@ -311,5 +337,31 @@ class MainActivity : AppCompatActivity() {
                                 "TV'ye bağlanılamadı"
                             }
                     }
-               
+                }
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(ipInput)
+        layout.addView(minuteInput)
+        layout.addView(backButton)
+        layout.addView(playButton)
+        layout.addView(liveButton)
+        layout.addView(status)
+
+        setContentView(layout)
+    }
+
+    override fun onDestroy() {
+
+        try {
+            tvView?.reset()
+        } catch (_: Exception) {
+        }
+
+        tvView = null
+        timeShiftTester = null
+
+        super.onDestroy()
+    }
 }
