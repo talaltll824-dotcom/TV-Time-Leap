@@ -13,35 +13,26 @@ import androidx.media3.exoplayer.ExoPlayer
 class BufferService : Service() {
 
     private var player: ExoPlayer? = null
-    private var commandServer: TvCommandServer? = null
 
     override fun onCreate() {
         super.onCreate()
 
         createNotificationChannel()
 
-        val notification = NotificationCompat.Builder(
-            this,
-            CHANNEL_ID
-        )
-            .setContentTitle("TV Time Leap")
-            .setContentText("Arka planda çalışıyor")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setOngoing(true)
-            .build()
+        val notification =
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("TV Time Leap")
+                .setContentText("Yayın sistemi çalışıyor")
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setOngoing(true)
+                .build()
 
-        startForeground(1001, notification)
+        startForeground(
+            NOTIFICATION_ID,
+            notification
+        )
 
         player = ExoPlayer.Builder(this).build()
-
-        commandServer = TvCommandServer(
-            port = 8765,
-            onCommand = { command ->
-                handleRemoteCommand(command)
-            }
-        )
-
-        commandServer?.start()
     }
 
     override fun onStartCommand(
@@ -53,9 +44,10 @@ class BufferService : Service() {
         when (intent?.action) {
 
             ACTION_START_STREAM -> {
-                val url = intent.getStringExtra(
-                    EXTRA_STREAM_URL
-                )
+                val url =
+                    intent.getStringExtra(
+                        EXTRA_STREAM_URL
+                    )
 
                 if (!url.isNullOrBlank()) {
                     startStream(url)
@@ -63,20 +55,21 @@ class BufferService : Service() {
             }
 
             ACTION_SEEK_BACK -> {
-                val minutes = intent.getIntExtra(
-                    EXTRA_MINUTES,
-                    0
-                )
+                val minutes =
+                    intent.getIntExtra(
+                        EXTRA_MINUTES,
+                        0
+                    )
 
                 seekBack(minutes)
             }
 
-            ACTION_LIVE -> {
-                goLive()
-            }
-
             ACTION_PLAY_PAUSE -> {
                 togglePlayPause()
+            }
+
+            ACTION_LIVE -> {
+                goLive()
             }
         }
 
@@ -84,68 +77,40 @@ class BufferService : Service() {
     }
 
     private fun startStream(url: String) {
-        val exoPlayer = player ?: return
 
-        val mediaItem = MediaItem.fromUri(url)
+        val mediaItem =
+            MediaItem.fromUri(url)
 
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.play()
-    }
-
-    private fun handleRemoteCommand(
-        command: String
-    ) {
-
-        when {
-
-            command == "LIVE" -> {
-                goLive()
-            }
-
-            command == "PLAY_PAUSE" -> {
-                togglePlayPause()
-            }
-
-            command.startsWith("BACK:") -> {
-                val minutes = command
-                    .substringAfter("BACK:")
-                    .trim()
-                    .toIntOrNull()
-
-                if (minutes != null) {
-                    seekBack(minutes)
-                }
-            }
+        player?.apply {
+            setMediaItem(mediaItem)
+            prepare()
+            playWhenReady = true
         }
     }
 
     private fun seekBack(minutes: Int) {
+
         if (minutes <= 0) {
             return
         }
 
-        val exoPlayer = player ?: return
+        val current =
+            player?.currentPosition ?: return
 
-        val amount =
+        val backMilliseconds =
             minutes.toLong() * 60_000L
 
         val target =
-            (exoPlayer.currentPosition - amount)
+            (current - backMilliseconds)
                 .coerceAtLeast(0L)
 
-        exoPlayer.seekTo(target)
-    }
-
-    private fun goLive() {
-        val exoPlayer = player ?: return
-
-        exoPlayer.seekToDefaultPosition()
-        exoPlayer.play()
+        player?.seekTo(target)
     }
 
     private fun togglePlayPause() {
-        val exoPlayer = player ?: return
+
+        val exoPlayer =
+            player ?: return
 
         if (exoPlayer.isPlaying) {
             exoPlayer.pause()
@@ -154,11 +119,22 @@ class BufferService : Service() {
         }
     }
 
+    private fun goLive() {
+
+        val exoPlayer =
+            player ?: return
+
+        exoPlayer.seekToDefaultPosition()
+        exoPlayer.play()
+    }
+
     private fun createNotificationChannel() {
+
         if (
             Build.VERSION.SDK_INT >=
             Build.VERSION_CODES.O
         ) {
+
             val manager =
                 getSystemService(
                     NotificationManager::class.java
@@ -177,15 +153,7 @@ class BufferService : Service() {
         }
     }
 
-    override fun onBind(
-        intent: Intent?
-    ): IBinder? {
-        return null
-    }
-
     override fun onDestroy() {
-        commandServer?.stop()
-        commandServer = null
 
         player?.release()
         player = null
@@ -193,18 +161,25 @@ class BufferService : Service() {
         super.onDestroy()
     }
 
+    override fun onBind(
+        intent: Intent?
+    ): IBinder? {
+        return null
+    }
+
     companion object {
+
         const val ACTION_START_STREAM =
             "com.tvtimeleap.app.START_STREAM"
 
         const val ACTION_SEEK_BACK =
             "com.tvtimeleap.app.SEEK_BACK"
 
-        const val ACTION_LIVE =
-            "com.tvtimeleap.app.LIVE"
-
         const val ACTION_PLAY_PAUSE =
             "com.tvtimeleap.app.PLAY_PAUSE"
+
+        const val ACTION_LIVE =
+            "com.tvtimeleap.app.LIVE"
 
         const val EXTRA_STREAM_URL =
             "stream_url"
@@ -213,6 +188,9 @@ class BufferService : Service() {
             "minutes"
 
         private const val CHANNEL_ID =
-            "tv_time_leap_buffer"
+            "tv_time_leap_channel"
+
+        private const val NOTIFICATION_ID =
+            1001
     }
 }
