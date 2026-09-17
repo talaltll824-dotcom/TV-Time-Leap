@@ -5,108 +5,215 @@ import android.os.Bundle
 import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
-    private lateinit var rewindButton: Button
-    private lateinit var playPauseButton: Button
-    private lateinit var forwardButton: Button
-    private lateinit var liveButton: Button
+    private lateinit var timeText: TextView
+    private lateinit var timeline: SeekBar
+
+    private var positionSeconds = 3600
+    private val bufferSeconds = 3600
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val mainLayout = LinearLayout(this).apply {
+        val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(40, 50, 40, 50)
+            setPadding(35, 40, 35, 40)
             setBackgroundColor(Color.WHITE)
         }
 
         val title = TextView(this).apply {
             text = "TV Time Leap"
-            textSize = 32f
+            textSize = 30f
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
         }
 
-        val description = TextView(this).apply {
-            text = "Android TV Kontrol"
-            textSize = 18f
-            setTextColor(Color.DKGRAY)
+        val subtitle = TextView(this).apply {
+            text = "1 Saatlik Canlı TV Zaman Kontrolü"
+            textSize = 17f
             gravity = Gravity.CENTER
-            setPadding(0, 15, 0, 30)
+            setTextColor(Color.DKGRAY)
+            setPadding(0, 10, 0, 25)
         }
 
         statusText = TextView(this).apply {
             text = "TV bağlantısı bekleniyor"
             textSize = 18f
-            setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
-            setPadding(0, 10, 0, 30)
+            setTextColor(Color.BLACK)
+            setPadding(0, 10, 0, 20)
+        }
+
+        timeText = TextView(this).apply {
+            text = "CANLI"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(Color.BLACK)
+        }
+
+        timeline = SeekBar(this).apply {
+            max = bufferSeconds
+            progress = bufferSeconds
         }
 
         val connectButton = Button(this).apply {
-            text = "TV'YE BAĞLAN"
+            text = "📺 TV'YE BAĞLAN"
         }
 
-        rewindButton = Button(this).apply {
-            text = "⏪ 10 SANİYE GERİ"
-            isEnabled = false
+        val oneHourBackButton = Button(this).apply {
+            text = "⏪ 1 SAAT GERİ"
         }
 
-        playPauseButton = Button(this).apply {
+        val backButton = Button(this).apply {
+            text = "↩ 10 SANİYE GERİ"
+        }
+
+        val playPauseButton = Button(this).apply {
             text = "▶ OYNAT / DURAKLAT"
-            isEnabled = false
         }
 
-        forwardButton = Button(this).apply {
-            text = "10 SANİYE İLERİ ⏩"
-            isEnabled = false
+        val forwardButton = Button(this).apply {
+            text = "10 SANİYE İLERİ ↪"
         }
 
-        liveButton = Button(this).apply {
-            text = "📺 CANLIYA DÖN"
-            isEnabled = false
+        val continueButton = Button(this).apply {
+            text = "▶ KALDIĞIN YERDEN DEVAM"
+        }
+
+        val liveButton = Button(this).apply {
+            text = "🔴 CANLIYA DÖN"
+        }
+
+        val storageText = TextView(this).apply {
+            text = "Geçici yayın deposu: Son 60 dakika"
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.DKGRAY)
+            setPadding(0, 20, 0, 10)
         }
 
         connectButton.setOnClickListener {
             statusText.text = "TV bağlantısı hazırlanıyor..."
-
-            rewindButton.isEnabled = true
-            playPauseButton.isEnabled = true
-            forwardButton.isEnabled = true
-            liveButton.isEnabled = true
         }
 
-        rewindButton.setOnClickListener {
-            statusText.text = "10 saniye geri sar"
+        oneHourBackButton.setOnClickListener {
+            positionSeconds = 0
+            updateTimeline()
+            statusText.text = "1 saat önceki noktaya gidildi"
+        }
+
+        backButton.setOnClickListener {
+            positionSeconds = (positionSeconds - 10).coerceAtLeast(0)
+            updateTimeline()
+        }
+
+        forwardButton.setOnClickListener {
+            positionSeconds =
+                (positionSeconds + 10).coerceAtMost(bufferSeconds)
+
+            updateTimeline()
         }
 
         playPauseButton.setOnClickListener {
             statusText.text = "Oynat / Duraklat"
         }
 
-        forwardButton.setOnClickListener {
-            statusText.text = "10 saniye ileri sar"
+        continueButton.setOnClickListener {
+            statusText.text = "Kaldığın yerden devam ediliyor"
         }
 
         liveButton.setOnClickListener {
-            statusText.text = "Canlı yayına dön"
+            positionSeconds = bufferSeconds
+            updateTimeline()
+            statusText.text = "Canlı yayına dönüldü"
         }
 
-        mainLayout.addView(title)
-        mainLayout.addView(description)
-        mainLayout.addView(statusText)
-        mainLayout.addView(connectButton)
-        mainLayout.addView(rewindButton)
-        mainLayout.addView(playPauseButton)
-        mainLayout.addView(forwardButton)
-        mainLayout.addView(liveButton)
+        timeline.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
 
-        setContentView(mainLayout)
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+                    if (fromUser) {
+                        positionSeconds = progress
+                        updateTimeline()
+                    }
+                }
+
+                override fun onStartTrackingTouch(
+                    seekBar: SeekBar?
+                ) {
+                }
+
+                override fun onStopTrackingTouch(
+                    seekBar: SeekBar?
+                ) {
+                }
+            }
+        )
+
+        layout.addView(title)
+        layout.addView(subtitle)
+
+        layout.addView(statusText)
+
+        layout.addView(timeText)
+        layout.addView(timeline)
+
+        layout.addView(connectButton)
+
+        layout.addView(oneHourBackButton)
+        layout.addView(backButton)
+
+        layout.addView(playPauseButton)
+
+        layout.addView(forwardButton)
+
+        layout.addView(continueButton)
+
+        layout.addView(liveButton)
+
+        layout.addView(storageText)
+
+        setContentView(layout)
+
+        updateTimeline()
+    }
+
+    private fun updateTimeline() {
+
+        timeline.progress = positionSeconds
+
+        val secondsBehindLive =
+            bufferSeconds - positionSeconds
+
+        if (secondsBehindLive <= 0) {
+
+            timeText.text = "🔴 CANLI"
+
+        } else {
+
+            val minutes =
+                secondsBehindLive / 60
+
+            val seconds =
+                secondsBehindLive % 60
+
+            timeText.text =
+                String.format(
+                    "-%02d:%02d",
+                    minutes,
+                    seconds
+                )
+        }
     }
 }
