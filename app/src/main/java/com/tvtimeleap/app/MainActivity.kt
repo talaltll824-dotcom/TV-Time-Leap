@@ -86,7 +86,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         tunerButton.setOnClickListener {
-
             status.text = testTuner()
         }
 
@@ -119,11 +118,15 @@ class MainActivity : AppCompatActivity() {
 
                 val names =
                     tunerInputs.joinToString("\n") {
+
                         try {
+
                             it.loadLabel(
-                                packageManager
+                                this@MainActivity
                             ).toString()
+
                         } catch (_: Exception) {
+
                             it.id
                         }
                     }
@@ -244,7 +247,9 @@ class MainActivity : AppCompatActivity() {
 
             } else {
 
-                client.playPause(ip) { success ->
+                client.playPause(
+                    ip
+                ) { success ->
 
                     runOnUiThread {
 
@@ -271,7 +276,9 @@ class MainActivity : AppCompatActivity() {
 
             } else {
 
-                client.goLive(ip) { success ->
+                client.goLive(
+                    ip
+                ) { success ->
 
                     runOnUiThread {
 
