@@ -1,10 +1,10 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,14 +22,21 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+
+      - name: Make Gradle executable
+        run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug
+
+      - name: Prepare APK
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk release/TV-Time-Leap.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: TV-Time-Leap-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: TV-Time-Leap-APK
+          path: release/TV-Time-Leap.apk
+          compression-level: 0
