@@ -8,7 +8,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.tvtimeleap.tunertest2026"
+        applicationId = "com.tvtimeleap.timeshifttest20260918"
         minSdk = 23
         targetSdk = 35
         versionCode = 1
