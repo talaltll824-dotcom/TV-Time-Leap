@@ -1,12 +1,10 @@
 package com.tvtimeleap.app
 
-import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -16,46 +14,51 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var statusText: TextView
-    private val client = TvCommandClient()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (isTelevision()) {
-            showTvScreen()
+        if (isTv()) {
+            showTv()
         } else {
-            showPhoneScreen()
+            showPhone()
         }
     }
 
-    private fun isTelevision(): Boolean {
-        val mode =
+    private fun isTv(): Boolean {
+        val type =
             resources.configuration.uiMode and
                 Configuration.UI_MODE_TYPE_MASK
 
-        return mode == Configuration.UI_MODE_TYPE_TELEVISION
+        return type ==
+            Configuration.UI_MODE_TYPE_TELEVISION
     }
 
-    private fun showTvScreen() {
+    private fun showTv() {
 
-        val layout = createMainLayout()
+        val layout = LinearLayout(this)
+        layout.orientation = LinearLayout.VERTICAL
+        layout.gravity = Gravity.CENTER
+        layout.setPadding(40, 40, 40, 40)
+        layout.setBackgroundColor(Color.WHITE)
 
-        val title = createTitle(
-            "TV Time Leap - TV"
-        )
+        val title = TextView(this)
+        title.text = "TV Time Leap"
+        title.textSize = 30f
+        title.gravity = Gravity.CENTER
+        title.setTextColor(Color.BLACK)
 
-        statusText = createStatus(
-            "Telefon bağlantısı bekleniyor"
-        )
+        val status = TextView(this)
+        status.text = "Hazır"
+        status.textSize = 18f
+        status.gravity = Gravity.CENTER
+        status.setPadding(0, 30, 0, 30)
 
-        val startButton = Button(this).apply {
-            text = "TV TIME LEAP BAŞLAT"
-        }
+        val start = Button(this)
+        start.text = "TV TIME LEAP BAŞLAT"
 
-        startButton.setOnClickListener {
+        start.setOnClickListener {
 
-            val intent =
+            val serviceIntent =
                 Intent(
                     this,
                     BufferService::class.java
@@ -63,33 +66,44 @@ class MainActivity : AppCompatActivity() {
 
             ContextCompat.startForegroundService(
                 this,
-                intent
+                serviceIntent
             )
 
-            statusText.text =
-                "Hazır - Telefon komutları bekleniyor"
+            status.text =
+                "Telefon bağlantısı bekleniyor"
         }
 
         layout.addView(title)
-        layout.addView(statusText)
-        layout.addView(startButton)
+        layout.addView(status)
+        layout.addView(start)
 
         setContentView(layout)
     }
 
-    private fun showPhoneScreen() {
+    private fun showPhone() {
 
-        val layout = createMainLayout()
+        val layout = LinearLayout(this)
+        layout.orientation = LinearLayout.VERTICAL
+        layout.gravity = Gravity.CENTER
+        layout.setPadding(40, 40, 40, 40)
+        layout.setBackgroundColor(Color.WHITE)
 
-        val title = createTitle(
-            "TV Time Leap"
-        )
+        val title = TextView(this)
+        title.text = "TV Time Leap"
+        title.textSize = 30f
+        title.gravity = Gravity.CENTER
+        title.setTextColor(Color.BLACK)
 
-        val subtitle = TextView(this).apply {
-            text = "Telefon Kumandası"
-            textSize = 18f
-            gravity = Gravity.CENTER
-            setTextColor(Color.DKGRAY)
-        }
+        val ip = EditText(this)
+        ip.hint = "TV IP adresi"
+        ip.setSingleLine(true)
 
-        val ipInput = EditText(this).apply {
+        val minutes = EditText(this)
+        minutes.hint = "Kaç dakika geri?"
+        minutes.inputType =
+            android.text.InputType.TYPE_CLASS_NUMBER
+        minutes.setSingleLine(true)
+
+        val status = TextView(this)
+        status.text = "TV bağlantısı bekleniyor"
+        status.gravity
