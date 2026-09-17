@@ -1,24 +1,24 @@
 package com.tvtimeleap.app
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlin.concurrent.thread
 
 class TvCommandClient {
 
-    fun sendCommand(
+    fun send(
         tvIp: String,
         command: String,
-        onResult: (Boolean, String) -> Unit
+        onResult: (Boolean) -> Unit
     ) {
         thread {
+            var success = false
+
             try {
                 Socket().use { socket ->
 
                     socket.connect(
-                        InetSocketAddress(tvIp, PORT),
+                        InetSocketAddress(tvIp, 8765),
                         5000
                     )
 
@@ -30,50 +30,29 @@ class TvCommandClient {
                     writer.newLine()
                     writer.flush()
 
-                    val reader = BufferedReader(
-                        InputStreamReader(
-                            socket.getInputStream()
-                        )
-                    )
+                    val reader =
+                        socket.getInputStream()
+                            .bufferedReader()
 
                     val response =
-                        reader.readLine() ?: ""
+                        reader.readLine()
 
-                    if (response == "OK") {
-                        onResult(
-                            true,
-                            "Komut TV'ye gönderildi"
-                        )
-                    } else {
-                        onResult(
-                            false,
-                            "TV cevap vermedi"
-                        )
-                    }
+                    success = response == "OK"
                 }
-            } catch (e: Exception) {
-                onResult(
-                    false,
-                    "TV bağlantısı kurulamadı"
-                )
+            } catch (_: Exception) {
+                success = false
             }
+
+            onResult(success)
         }
     }
 
     fun seekBack(
         tvIp: String,
         minutes: Int,
-        onResult: (Boolean, String) -> Unit
+        onResult: (Boolean) -> Unit
     ) {
-        if (minutes <= 0) {
-            onResult(
-                false,
-                "Dakika 0'dan büyük olmalı"
-            )
-            return
-        }
-
-        sendCommand(
+        send(
             tvIp,
             "BACK:$minutes",
             onResult
@@ -82,7 +61,23 @@ class TvCommandClient {
 
     fun goLive(
         tvIp: String,
-        onResult: (Boolean, String) -> Unit
+        onResult: (Boolean) -> Unit
     ) {
-        sendCommand(
-            tvIp
+        send(
+            tvIp,
+            "LIVE",
+            onResult
+        )
+    }
+
+    fun playPause(
+        tvIp: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        send(
+            tvIp,
+            "PLAY_PAUSE",
+            onResult
+        )
+    }
+}
