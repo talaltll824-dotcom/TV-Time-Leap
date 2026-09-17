@@ -13,6 +13,7 @@ import androidx.media3.exoplayer.ExoPlayer
 class BufferService : Service() {
 
     private var player: ExoPlayer? = null
+    private var commandServer: TvCommandServer? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -22,12 +23,20 @@ class BufferService : Service() {
         val notification =
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("TV Time Leap")
-                .setContentText("Yayın arka planda çalışıyor")
+                .setContentText("TV Time Leap arka planda çalışıyor")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
                 .build()
 
         startForeground(1001, notification)
+
+        player = ExoPlayer.Builder(this).build()
+
+        commandServer = TvCommandServer(8765) { command ->
+            handleRemoteCommand(command)
+        }
+
+        commandServer?.start()
     }
 
     override fun onStartCommand(
@@ -36,77 +45,41 @@ class BufferService : Service() {
         startId: Int
     ): Int {
 
-        val streamUrl =
-            intent?.getStringExtra(EXTRA_STREAM_URL)
+        when (intent?.action) {
 
-        if (!streamUrl.isNullOrBlank()) {
+            ACTION_START_STREAM -> {
+                val streamUrl =
+                    intent.getStringExtra(EXTRA_STREAM_URL)
 
-            if (player == null) {
-                player = ExoPlayer.Builder(this).build()
+                if (!streamUrl.isNullOrBlank()) {
+                    startStream(streamUrl)
+                }
             }
 
-            player?.apply {
+            ACTION_SEEK_BACK -> {
+                val minutes =
+                    intent.getIntExtra(EXTRA_MINUTES, 0)
 
-                setMediaItem(
-                    MediaItem.fromUri(streamUrl)
-                )
+                seekBack(minutes)
+            }
 
-                prepare()
+            ACTION_LIVE -> {
+                goLive()
+            }
 
-                playWhenReady = true
-
-                // Arka planda ikinci ses çıkmasın
-                volume = 0f
+            ACTION_PLAY_PAUSE -> {
+                togglePlayPause()
             }
         }
 
         return START_STICKY
     }
 
-    override fun onDestroy() {
+    private fun startStream(streamUrl: String) {
 
-        player?.release()
+        val mediaItem =
+            MediaItem.fromUri(streamUrl)
 
-        player = null
-
-        super.onDestroy()
-    }
-
-    override fun onBind(
-        intent: Intent?
-    ): IBinder? = null
-
-    private fun createNotificationChannel() {
-
-        if (
-            Build.VERSION.SDK_INT >=
-            Build.VERSION_CODES.O
-        ) {
-
-            val manager =
-                getSystemService(
-                    NotificationManager::class.java
-                )
-
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "TV Time Leap Buffer",
-                    NotificationManager.IMPORTANCE_LOW
-                )
-
-            manager.createNotificationChannel(
-                channel
-            )
-        }
-    }
-
-    companion object {
-
-        const val EXTRA_STREAM_URL =
-            "stream_url"
-
-        private const val CHANNEL_ID =
-            "tv_time_leap_buffer"
-    }
-}
+        player?.apply {
+            setMediaItem(mediaItem)
+            prepare
