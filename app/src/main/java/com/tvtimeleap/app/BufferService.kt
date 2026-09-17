@@ -13,6 +13,7 @@ import androidx.media3.exoplayer.ExoPlayer
 class BufferService : Service() {
 
     private var player: ExoPlayer? = null
+    private var commandServer: TvCommandServer? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -22,7 +23,7 @@ class BufferService : Service() {
         val notification =
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("TV Time Leap")
-                .setContentText("Yayın sistemi çalışıyor")
+                .setContentText("TV bağlantısı aktif")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
                 .build()
@@ -33,6 +34,15 @@ class BufferService : Service() {
         )
 
         player = ExoPlayer.Builder(this).build()
+
+        commandServer = TvCommandServer(
+            port = 8765,
+            onCommand = { command ->
+                handleCommand(command)
+            }
+        )
+
+        commandServer?.start()
     }
 
     override fun onStartCommand(
@@ -76,35 +86,76 @@ class BufferService : Service() {
         return START_STICKY
     }
 
-    private fun startStream(url: String) {
+    private fun handleCommand(
+        command: String
+    ) {
+
+        when {
+
+            command == "LIVE" -> {
+                goLive()
+            }
+
+            command == "PLAY_PAUSE" -> {
+                togglePlayPause()
+            }
+
+            command.startsWith("BACK:") -> {
+
+                val minutes =
+                    command
+                        .substringAfter("BACK:")
+                        .trim()
+                        .toIntOrNull()
+
+                if (minutes != null) {
+                    seekBack(minutes)
+                }
+            }
+        }
+    }
+
+    private fun startStream(
+        url: String
+    ) {
+
+        val exoPlayer =
+            player ?: return
 
         val mediaItem =
             MediaItem.fromUri(url)
 
-        player?.apply {
-            setMediaItem(mediaItem)
-            prepare()
-            playWhenReady = true
-        }
+        exoPlayer.setMediaItem(
+            mediaItem
+        )
+
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
-    private fun seekBack(minutes: Int) {
+    private fun seekBack(
+        minutes: Int
+    ) {
 
         if (minutes <= 0) {
             return
         }
 
-        val current =
-            player?.currentPosition ?: return
+        val exoPlayer =
+            player ?: return
 
-        val backMilliseconds =
+        val backAmount =
             minutes.toLong() * 60_000L
 
         val target =
-            (current - backMilliseconds)
-                .coerceAtLeast(0L)
+            (
+                exoPlayer.currentPosition -
+                    backAmount
+            ).coerceAtLeast(0L)
 
-        player?.seekTo(target)
+        exoPlayer.seekTo(
+            target
+        )
     }
 
     private fun togglePlayPause() {
@@ -154,6 +205,9 @@ class BufferService : Service() {
     }
 
     override fun onDestroy() {
+
+        commandServer?.stop()
+        commandServer = null
 
         player?.release()
         player = null
