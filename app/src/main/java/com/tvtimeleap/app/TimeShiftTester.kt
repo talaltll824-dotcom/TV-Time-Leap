@@ -1,12 +1,12 @@
 package com.tvtimeleap.app
 
 import android.content.Context
+import android.database.Cursor
 import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.media.tv.TvView
 import android.net.Uri
-import android.provider.BaseColumns
 
 class TimeShiftTester(
     private val context: Context,
@@ -33,140 +33,145 @@ class TimeShiftTester(
                 return
             }
 
-            tvView.setCallback(
-                object : TvView.TvInputCallback() {
+            val tunerId = tuner.id
 
-                    override fun onConnectionFailed(
-                        inputId: String
-                    ) {
-                        onResult(
-                            "TUNER BAGLANTISI BASARISIZ"
-                        )
-                    }
-
-                    override fun onVideoAvailable(
-                        inputId: String
-                    ) {
-                        onResult(
-                            "KANAL ACILDI - TIMESHIFT BEKLENIYOR"
-                        )
-                    }
-
-                    override fun onVideoUnavailable(
-                        inputId: String,
-                        reason: Int
-                    ) {
-                        onResult(
-                            "KANAL VIDEO BEKLENIYOR - KOD: $reason"
-                        )
-                    }
-
-                    override fun onTimeShiftStatusChanged(
-                        inputId: String,
-                        status: Int
-                    ) {
-
-                        val result =
-                            when (status) {
-
-                                TvInputManager.TIME_SHIFT_STATUS_AVAILABLE ->
-                                    "TIMESHIFT KULLANILABILIR"
-
-                                TvInputManager.TIME_SHIFT_STATUS_UNAVAILABLE ->
-                                    "TIMESHIFT SU AN KULLANILAMIYOR"
-
-                                TvInputManager.TIME_SHIFT_STATUS_UNSUPPORTED ->
-                                    "TIMESHIFT DESTEKLENMIYOR"
-
-                                else ->
-                                    "TIMESHIFT DURUM KODU: $status"
-                            }
-
-                        onResult(result)
-                    }
-                }
+            onResult(
+                "TUNER BULUNDU\nKANAL ARANIYOR..."
             )
 
-            val channel =
-                findChannel(
-                    tuner.id
+            tryChannelAccess(tunerId)
+
+        } catch (e: Exception) {
+
+            onResult(
+                "TUNER HATASI:\n" +
+                    (e.message ?: e.javaClass.simpleName)
+            )
+        }
+    }
+
+    private fun tryChannelAccess(
+        tunerId: String
+    ) {
+
+        var cursor: Cursor? = null
+
+        try {
+
+            val projection = arrayOf(
+                TvContract.Channels._ID,
+                TvContract.Channels.COLUMN_DISPLAY_NUMBER,
+                TvContract.Channels.COLUMN_DISPLAY_NAME,
+                TvContract.Channels.COLUMN_INPUT_ID
+            )
+
+            cursor =
+                context.contentResolver.query(
+                    TvContract.Channels.CONTENT_URI,
+                    projection,
+                    "${TvContract.Channels.COLUMN_INPUT_ID} = ?",
+                    arrayOf(tunerId),
+                    null
                 )
 
-            if (channel == null) {
+            if (cursor == null) {
 
                 onResult(
-                    "TUNER VAR AMA KANAL LISTESINE ERISILEMEDI"
+                    "KANAL VERİTABANINA ERİŞİLEMEDİ"
                 )
 
                 return
             }
 
+            if (!cursor.moveToFirst()) {
+
+                onResult(
+                    "TUNER VAR AMA KANAL LİSTESİ " +
+                        "UYGULAMAYA AÇIK DEĞİL"
+                )
+
+                return
+            }
+
+            val idIndex =
+                cursor.getColumnIndex(
+                    TvContract.Channels._ID
+                )
+
+            val numberIndex =
+                cursor.getColumnIndex(
+                    TvContract.Channels.COLUMN_DISPLAY_NUMBER
+                )
+
+            val nameIndex =
+                cursor.getColumnIndex(
+                    TvContract.Channels.COLUMN_DISPLAY_NAME
+                )
+
+            if (idIndex < 0) {
+
+                onResult(
+                    "KANAL ID OKUNAMADI"
+                )
+
+                return
+            }
+
+            val channelId =
+                cursor.getLong(idIndex)
+
+            val channelNumber =
+                if (numberIndex >= 0) {
+                    cursor.getString(numberIndex)
+                        ?: "?"
+                } else {
+                    "?"
+                }
+
+            val channelName =
+                if (nameIndex >= 0) {
+                    cursor.getString(nameIndex)
+                        ?: "Bilinmeyen kanal"
+                } else {
+                    "Bilinmeyen kanal"
+                }
+
+            val channelUri: Uri =
+                TvContract.buildChannelUri(
+                    channelId
+                )
+
             onResult(
-                "KANAL BULUNDU - BAGLANILIYOR..."
+                "KANAL BULUNDU\n" +
+                    "$channelNumber - $channelName\n" +
+                    "AÇILIYOR..."
             )
 
             tvView.tune(
-                tuner.id,
-                channel
+                tunerId,
+                channelUri
             )
 
         } catch (e: SecurityException) {
 
             onResult(
-                "KANAL ERISIM IZNI ENGELLENDI"
+                "KANAL ERİŞİMİ ANDROID TARAFINDAN ENGELLENDİ\n" +
+                    e.javaClass.simpleName
             )
 
         } catch (e: Exception) {
 
             onResult(
-                "TEST HATASI: " +
-                    (e.message ?: "Bilinmeyen hata")
-            )
-        }
-    }
-
-    private fun findChannel(
-        inputId: String
-    ): Uri? {
-
-        val projection =
-            arrayOf(
-                BaseColumns._ID,
-                TvContract.Channels.COLUMN_INPUT_ID
+                "KANAL TEST HATASI:\n" +
+                    (e.message ?: e.javaClass.simpleName)
             )
 
-        val cursor =
-            context.contentResolver.query(
-                TvContract.Channels.CONTENT_URI,
-                projection,
-                "${TvContract.Channels.COLUMN_INPUT_ID} = ?",
-                arrayOf(inputId),
-                null
-            )
+        } finally {
 
-        cursor?.use {
-
-            if (it.moveToFirst()) {
-
-                val idIndex =
-                    it.getColumnIndex(
-                        BaseColumns._ID
-                    )
-
-                if (idIndex >= 0) {
-
-                    val channelId =
-                        it.getLong(
-                            idIndex
-                        )
-
-                    return TvContract.buildChannelUri(
-                        channelId
-                    )
-                }
+            try {
+                cursor?.close()
+            } catch (_: Exception) {
             }
         }
-
-        return null
     }
 }
