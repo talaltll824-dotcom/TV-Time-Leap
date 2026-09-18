@@ -9,6 +9,7 @@ import android.media.tv.TvInputManager
 import android.media.tv.TvView
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         tvStatus = status
 
         val hiddenTvView = TvView(this).apply {
-            visibility = android.view.View.GONE
+            visibility = View.GONE
         }
 
         tvView = hiddenTvView
@@ -188,11 +189,8 @@ class MainActivity : AppCompatActivity() {
                     Context.TV_INPUT_SERVICE
                 ) as TvInputManager
 
-            val inputs =
-                manager.tvInputList
-
             val tunerInputs =
-                inputs.filter {
+                manager.tvInputList.filter {
                     it.type == TvInputInfo.TYPE_TUNER
                 }
 
@@ -270,8 +268,7 @@ class MainActivity : AppCompatActivity() {
 
         backButton.setOnClickListener {
 
-            val ip =
-                ipInput.text.toString().trim()
+            val ip = ipInput.text.toString().trim()
 
             val minutes =
                 minuteInput.text
@@ -316,16 +313,68 @@ class MainActivity : AppCompatActivity() {
 
         playButton.setOnClickListener {
 
-            val ip =
-                ipInput.text.toString().trim()
+            val ip = ipInput.text.toString().trim()
 
             if (ip.isBlank()) {
 
                 status.text =
                     "TV IP adresini gir"
 
-            } else { 
+            } else {
 
                 client.playPause(
                     ip
-                ) { success ->}
+                ) { success ->
+
+                    runOnUiThread {
+
+                        status.text =
+                            if (success) {
+                                "Oynat / Duraklat gönderildi"
+                            } else {
+                                "TV'ye bağlanılamadı"
+                            }
+                    }
+                }
+            }
+        }
+
+        liveButton.setOnClickListener {
+
+            val ip = ipInput.text.toString().trim()
+
+            if (ip.isBlank()) {
+
+                status.text =
+                    "TV IP adresini gir"
+
+            } else {
+
+                client.goLive(
+                    ip
+                ) { success ->
+
+                    runOnUiThread {
+
+                        status.text =
+                            if (success) {
+                                "Canlıya dön komutu gönderildi"
+                            } else {
+                                "TV'ye bağlanılamadı"
+                            }
+                    }
+                }
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(ipInput)
+        layout.addView(minuteInput)
+        layout.addView(backButton)
+        layout.addView(playButton)
+        layout.addView(liveButton)
+        layout.addView(status)
+
+        setContentView(layout)
+    }
+}
