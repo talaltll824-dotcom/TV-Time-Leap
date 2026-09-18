@@ -324,8 +324,8 @@ class MainActivity : AppCompatActivity() {
                 status.text =
                     "TV IP adresini gir"
 
-            } else {
+            } else { 
 
                 client.playPause(
                     ip
-                ) { success ->
+                ) { success ->}
