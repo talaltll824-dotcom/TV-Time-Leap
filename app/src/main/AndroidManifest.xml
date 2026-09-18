@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <!-- TV kanal listesini okumak için -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
+
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />
